@@ -10,30 +10,17 @@
 <style>
 /* Layout: operations console — top bar + tabbed workspace; summary strip before detail tables; report renders as an A4 paper sheet */
 :root{
-  --bg:#EFF2F1; --surface:#FFFFFF; --surface-2:#E6EBE9; --ink:#14232A; --muted:#566A70; --line:#D3DBD8;
-  --accent:#0D6A5D; --accent-ink:#FFFFFF; --accent-soft:#D8EEE8;
-  --ok:#1C7A3C; --ok-soft:#DDF1E3; --warn:#9A5800; --warn-soft:#FBEBD2; --bad:#B42318; --bad-soft:#FBE1DE;
-  --info:#1B5EA6; --info-soft:#DCE9F8; --neutral:#5F6B6E; --neutral-soft:#E4E8E7;
+  --bg:#F3F6F2; --surface:#FFFFFF; --surface-2:#EDF2EC; --ink:#1B2A1F; --muted:#5E6E62; --line:#DDE5DB;
+  --accent:#1F6B34; --accent-ink:#FFFFFF; --accent-soft:#E3F1E3;
+  --brand-1:#163F22; --brand-2:#215A2F; --lime:#8DC63F; --orange:#F0892E; --orange-soft:#FDEBDB;
+  --ok:#2E7D32; --ok-soft:#E1F2E1; --warn:#B26200; --warn-soft:#FDEFD9; --bad:#C62828; --bad-soft:#FDE4E4;
+  --info:#1F64B0; --info-soft:#E2EDFA; --neutral:#66756A; --neutral-soft:#ECF0EB;
   --paper:#FFFFFF; --paper-ink:#111111; --paper-line:#8A8A8A;
-  --shadow:0 1px 2px rgba(20,35,42,.06),0 4px 16px rgba(20,35,42,.06);
+  --shadow:0 1px 2px rgba(22,63,34,.05),0 6px 20px rgba(22,63,34,.07);
   --f-display:"Bai Jamjuree","IBM Plex Sans Thai",Tahoma,sans-serif;
   --f-body:"IBM Plex Sans Thai",Tahoma,"Leelawadee UI",sans-serif;
   --f-doc:"Sarabun","TH Sarabun New",Tahoma,sans-serif;
-  --r:10px;
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0E1618; --surface:#152023; --surface-2:#1C2A2E; --ink:#E2EBE8; --muted:#92A6A9; --line:#2A3B3F;
-  --accent:#3DBBA4; --accent-ink:#04211C; --accent-soft:#123A33;
-  --ok:#55C47F; --ok-soft:#163A24; --warn:#E3A642; --warn-soft:#3D2C10; --bad:#F2786A; --bad-soft:#44201C;
-  --info:#73AEF0; --info-soft:#162E4A; --neutral:#A3B0B2; --neutral-soft:#263336;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark;
-}}
-:root[data-theme="dark"]{
-  --bg:#0E1618; --surface:#152023; --surface-2:#1C2A2E; --ink:#E2EBE8; --muted:#92A6A9; --line:#2A3B3F;
-  --accent:#3DBBA4; --accent-ink:#04211C; --accent-soft:#123A33;
-  --ok:#55C47F; --ok-soft:#163A24; --warn:#E3A642; --warn-soft:#3D2C10; --bad:#F2786A; --bad-soft:#44201C;
-  --info:#73AEF0; --info-soft:#162E4A; --neutral:#A3B0B2; --neutral-soft:#263336;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25); color-scheme:dark;
+  --r:14px; color-scheme:light;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -320,6 +307,65 @@ td.ract{text-align:right}
 .mailset legend{font-size:.85rem;color:var(--muted);padding:0 4px}
 .mailset > label:not(.f){display:flex;gap:8px;align-items:center}
 td.ract .btn{margin:0 0 4px 4px}
+
+/* ===== ธีม MJ (เขียวเข้ม · เหมือนระบบ QR ทะเบียนทรัพย์สิน) ===== */
+.panel,.kpi,.tbl-wrap,.login .card{border-color:var(--line);box-shadow:var(--shadow)}
+.kpi{border-top:0;border-left:4px solid var(--k,var(--line));padding:14px 16px}
+.kpi b{color:var(--ink)}
+.btn.primary{background:var(--brand-2);border-color:var(--brand-2)}
+.btn.primary:hover{filter:none;background:var(--brand-1)}
+table.t th{background:#F1F5F0}
+.meter i{background:linear-gradient(90deg,var(--brand-2),var(--lime))}
+.subtabs button[aria-selected="true"]{color:var(--brand-2);border-bottom-color:var(--lime)}
+/* แถบเมนู: เขียวเข้ม */
+.top{background:linear-gradient(180deg,var(--brand-1),var(--brand-2));border-bottom:0;color:#fff}
+.top .brand{color:#fff}
+.top .logo{box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.nav button{color:rgba(255,255,255,.78);font-weight:500}
+.nav button:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav button[aria-current="page"]{background:#fff;color:var(--brand-1);font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.who,.who strong{color:#fff}
+.who .role-chip{background:rgba(255,255,255,.14);color:#fff}
+.who .btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff}
+.who .btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+.nav button::before{content:"";display:inline-block;width:18px;height:18px;margin-right:10px;vertical-align:-4px;background:currentColor;
+  -webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+.nav button[data-view="dashboard"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'/%3E%3C/svg%3E")}
+.nav button[data-view="tasks"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01'/%3E%3C/svg%3E")}
+.nav button[data-view="report"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpath d='M3 9h18M3 15h18M9 3v18'/%3E%3C/svg%3E")}
+.nav button[data-view="discipline"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 11l3 3 8-8'/%3E%3Cpath d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/%3E%3C/svg%3E")}
+.nav button[data-view="admin"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'/%3E%3C/svg%3E")}
+/* จอกว้าง: เมนูด้านซ้ายแบบระบบ QR */
+@media (min-width:1024px){
+  .top{position:fixed;top:0;left:0;bottom:0;width:268px;overflow-y:auto}
+  .top-in{max-width:none;height:100%;flex-direction:column;align-items:stretch;flex-wrap:nowrap;padding:22px 16px 18px;gap:18px}
+  .top .brand{flex-direction:column;align-items:flex-start;gap:12px;font-size:1.15rem;white-space:normal;padding:0 4px 18px;border-bottom:1px solid rgba(255,255,255,.14)}
+  .top .logo{height:auto;width:100%;max-width:236px;padding:10px 14px;border-radius:12px}
+  .nav{flex-direction:column;gap:4px}
+  .nav::before{content:"เมนู";font-size:.75rem;letter-spacing:.08em;color:rgba(255,255,255,.55);padding:0 12px 6px}
+  .nav button{text-align:left;padding:11px 14px;border-radius:12px;font-size:.97rem}
+  .who{margin:auto 0 0;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;padding-top:16px;border-top:1px solid rgba(255,255,255,.14)}
+  .who strong{order:-2;font-size:.98rem}
+  .who .role-chip{order:-1;align-self:flex-start}
+  .who .btn{justify-content:center}
+  body:has(.top) main{margin-left:268px;max-width:none;padding-inline:28px}
+  body:has(.top) .demo-bar{margin-left:268px}
+  body.present main{margin-left:0!important}
+}
+@media print{ main{margin-left:0!important} }
+@media (max-width:1023px){ .top{position:static} .nav{flex-wrap:nowrap;overflow-x:auto;width:100%} .nav button{white-space:nowrap} }
+/* แดชบอร์ด: แถบหัวสีเขียวแบบระบบ QR */
+body[data-view="dashboard"] .page-head{background:linear-gradient(110deg,var(--brand-1),var(--brand-2) 70%);color:#fff;border-radius:22px;padding:26px 28px;position:relative;overflow:hidden;align-items:center}
+body[data-view="dashboard"] .page-head::after{content:"";position:absolute;right:-40px;top:0;bottom:0;width:260px;pointer-events:none;
+  background:repeating-linear-gradient(115deg,rgba(141,198,63,.22) 0 14px,transparent 14px 34px)}
+body[data-view="dashboard"] .page-head h1{color:#fff;font-size:1.6rem}
+body[data-view="dashboard"] .page-head .sub{color:var(--lime);font-weight:600}
+body[data-view="dashboard"] .page-head .tools{position:relative;z-index:1}
+body[data-view="dashboard"] .page-head .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+body[data-view="dashboard"] .page-head select{background:#fff;color:var(--ink)}
+/* หน้าเข้าสู่ระบบ */
+.login{background:radial-gradient(1200px 600px at 10% -10%,rgba(141,198,63,.18),transparent 60%),linear-gradient(160deg,#F3F6F2,#E4EEE2)}
+.login .card{border-radius:20px;border-top:5px solid var(--brand-2)}
 </style>
 </head>
 <body>
@@ -971,6 +1017,7 @@ async function afterLogin(){
    โครงหน้า
    ===================================================================== */
 function renderShell(){
+  document.body.dataset.view = S.view;
   const tabs = [["dashboard","แดชบอร์ด"],["tasks","รายการงาน"],["report","รายงาน"]];
   if (canSeeDiscipline()) tabs.push(["discipline","วินัยการบันทึก"]);
   if (isAdmin()) tabs.push(["admin","จัดการระบบ"]);
