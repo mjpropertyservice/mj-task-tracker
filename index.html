@@ -358,17 +358,33 @@ table.t th{background:#F1F5F0}
 @media print{ main{margin-left:0!important} }
 @media (max-width:1023px){ .top{position:static} .nav{flex-wrap:nowrap;overflow-x:auto;width:100%} .nav button{white-space:nowrap} }
 /* แดชบอร์ด: แถบหัวสีเขียวแบบระบบ QR */
-body[data-view="dashboard"] .page-head{background:linear-gradient(110deg,var(--brand-1),var(--brand-2) 70%);color:#fff;border-radius:22px;padding:26px 28px;position:relative;overflow:hidden;align-items:center}
-body[data-view="dashboard"] .page-head::after{content:"";position:absolute;right:-40px;top:0;bottom:0;width:260px;pointer-events:none;
+body[data-page="dashboard"] .page-head{background:linear-gradient(110deg,var(--brand-1),var(--brand-2) 70%);color:#fff;border-radius:22px;padding:26px 28px;position:relative;overflow:hidden;align-items:center}
+body[data-page="dashboard"] .page-head::after{content:"";position:absolute;right:-40px;top:0;bottom:0;width:260px;pointer-events:none;
   background:repeating-linear-gradient(115deg,rgba(141,198,63,.22) 0 14px,transparent 14px 34px)}
-body[data-view="dashboard"] .page-head h1{color:#fff;font-size:1.6rem}
-body[data-view="dashboard"] .page-head .sub{color:var(--lime);font-weight:600}
-body[data-view="dashboard"] .page-head .tools{position:relative;z-index:1}
-body[data-view="dashboard"] .page-head .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
-body[data-view="dashboard"] .page-head select{background:#fff;color:var(--ink)}
+body[data-page="dashboard"] .page-head h1{color:#fff;font-size:1.6rem}
+body[data-page="dashboard"] .page-head .sub{color:var(--lime);font-weight:600}
+body[data-page="dashboard"] .page-head .tools{position:relative;z-index:1}
+body[data-page="dashboard"] .page-head .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+body[data-page="dashboard"] .page-head select{background:#fff;color:var(--ink)}
 /* หน้าเข้าสู่ระบบ */
 .login{background:radial-gradient(1200px 600px at 10% -10%,rgba(141,198,63,.18),transparent 60%),linear-gradient(160deg,#F3F6F2,#E4EEE2)}
 .login .card{border-radius:20px;border-top:5px solid var(--brand-2)}
+
+/* ช่องเลือกหน่วยงานแบบค้นหาได้ (แทนรายการของเบราว์เซอร์) */
+.combo{position:relative;min-width:220px;max-width:360px;width:100%}
+.combo-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;font:inherit}
+.combo-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo-btn::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-3px)}
+.combo.open .combo-btn{border-color:var(--brand-2);box-shadow:0 0 0 3px var(--accent-soft)}
+.combo-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:70;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(22,63,34,.18);padding:6px;min-width:280px}
+.combo-pop input{width:100%;margin-bottom:6px}
+.combo-list{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.combo-list button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--ink);font:inherit;font-size:.92rem}
+.combo-list button:hover,.combo-list button.hi{background:var(--accent-soft)}
+.combo-list button[aria-selected="true"]{font-weight:700;color:var(--brand-1)}
+.combo-list .none{padding:10px;color:var(--muted);font-size:.88rem}
+body[data-page="dashboard"] .page-head{overflow:visible}
+body[data-page="dashboard"] .page-head::after{right:0;border-radius:0 22px 22px 0}
 </style>
 </head>
 <body>
@@ -1020,7 +1036,7 @@ async function afterLogin(){
    โครงหน้า
    ===================================================================== */
 function renderShell(){
-  document.body.dataset.view = S.view;
+  document.body.dataset.page = S.view;   // ใช้ data-page (ห้ามใช้ data-view เพราะปุ่มเมนูใช้ [data-view])
   const tabs = [["dashboard","แดชบอร์ด"],["tasks","รายการงาน"],["report","รายงาน"]];
   if (canSeeDiscipline()) tabs.push(["discipline","วินัยการบันทึก"]);
   if (isAdmin()) tabs.push(["admin","จัดการระบบ"]);
@@ -2266,6 +2282,44 @@ function addEyes(root){
   });
 }
 new MutationObserver(() => addEyes(document)).observe(document.body, {childList:true, subtree:true});
+
+/* แทนช่องเลือกหน่วยงาน (select.scope) ด้วยรายการที่ค้นหาได้ — กันอาการรายการเปิดแวบเดียวแล้วปิดเอง */
+function enhanceScope(sel){
+  if (sel.dataset.combo) return; sel.dataset.combo = "1"; sel.style.display = "none";
+  const box = document.createElement("div"); box.className = "combo";
+  box.innerHTML = `<button type="button" class="combo-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(sel.getAttribute("aria-label") || "เลือกหน่วยงาน")}"><span></span></button>`;
+  sel.after(box);
+  const btn = box.firstElementChild, label = () => { const o = sel.options[sel.selectedIndex]; btn.firstElementChild.textContent = o ? o.textContent : ""; };
+  label(); sel.addEventListener("change", label);
+  let pop = null, hi = -1;
+  const close = () => { if (!pop) return; pop.remove(); pop = null; box.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", outside, true); };
+  const outside = e => { if (!box.contains(e.target)) close(); };
+  const pick = v => { close(); if (sel.value !== v){ sel.value = v; sel.dispatchEvent(new Event("change", {bubbles:true})); } label(); btn.focus(); };
+  const open = () => {
+    if (pop) return close();
+    pop = document.createElement("div"); pop.className = "combo-pop";
+    const many = sel.options.length > 8;
+    pop.innerHTML = (many ? `<input type="search" placeholder="ค้นหารหัสหรือชื่อหน่วยงาน" aria-label="ค้นหาหน่วยงาน">` : "") + `<div class="combo-list" role="listbox"></div>`;
+    box.appendChild(pop); box.classList.add("open"); btn.setAttribute("aria-expanded", "true");
+    const list = $(".combo-list", pop), q = $("input", pop);
+    const draw = () => { const t = (q ? q.value : "").trim().toLowerCase();
+      const opts = [...sel.options].filter(o => !t || o.textContent.toLowerCase().includes(t));
+      hi = opts.findIndex(o => o.value === sel.value); if (hi < 0) hi = 0;
+      list.innerHTML = opts.length ? opts.map((o, i) => `<button type="button" role="option" data-v="${esc(o.value)}" aria-selected="${o.value === sel.value}" class="${i === hi ? "hi" : ""}">${esc(o.textContent)}</button>`).join("") : `<div class="none">ไม่พบหน่วยงาน</div>`;
+      $$("button", list).forEach(b => b.onclick = () => pick(b.dataset.v)); };
+    draw();
+    const move = d => { const bs = $$("button", list); if (!bs.length) return; hi = (hi + d + bs.length) % bs.length; bs.forEach((b, i) => b.classList.toggle("hi", i === hi)); bs[hi].scrollIntoView({block:"nearest"}); };
+    pop.onkeydown = e => { if (e.key === "Escape"){ e.preventDefault(); close(); btn.focus(); }
+      else if (e.key === "ArrowDown"){ e.preventDefault(); move(1); } else if (e.key === "ArrowUp"){ e.preventDefault(); move(-1); }
+      else if (e.key === "Enter"){ e.preventDefault(); const b = $$("button", list)[hi]; if (b) pick(b.dataset.v); } };
+    if (q){ q.oninput = draw; setTimeout(() => q.focus(), 0); }
+    const cur = $('button[aria-selected="true"]', list); if (cur) cur.scrollIntoView({block:"nearest"});
+    setTimeout(() => document.addEventListener("mousedown", outside, true), 0);
+  };
+  btn.onclick = open;
+  btn.onkeydown = e => { if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " "){ e.preventDefault(); if (!pop) open(); } };
+}
+new MutationObserver(() => $$("select.scope:not([data-combo])").forEach(enhanceScope)).observe(document.body, {childList:true, subtree:true});
 
 (async function start(){
   try {
