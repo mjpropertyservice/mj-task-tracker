@@ -178,6 +178,9 @@ table.bulk{width:100%;border-collapse:collapse;min-width:980px}
 table.bulk th{font-size:.8rem;font-weight:600;color:var(--muted);text-align:left;padding:8px 6px;background:var(--surface-2,#f6f8f6);border-bottom:1px solid var(--line);white-space:nowrap}
 table.bulk td{padding:4px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
 table.bulk td.no{width:30px;text-align:center;color:var(--muted);font-size:.8rem}
+table.bulk textarea{width:100%;min-width:240px;margin-top:4px;padding:6px 8px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:inherit;resize:vertical;min-height:34px;height:34px;display:block}
+table.bulk td{vertical-align:top}
+table.bulk td.no,table.bulk td:last-child{padding-top:12px}
 table.bulk input,table.bulk select{width:100%;min-width:0;padding:7px 8px;font:inherit;font-size:.9rem;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:inherit}
 table.bulk input.ttl-in{min-width:240px}
 table.bulk input.pct{width:64px}
@@ -1407,7 +1410,7 @@ function bulkTaskForm(){
   const defUnit = S.scope !== "all" && canCreate(S.scope) ? S.scope : "";
   const cols = 7 + (canSt ? 3 : 0);
   const m = modal(`<form id="bf" novalidate>
-    <div class="m-head"><div><h2>เพิ่มหลายงานในครั้งเดียว</h2><div class="hint">กรอกเฉพาะแถวที่ต้องการ แถวที่ไม่มีชื่องานจะถูกข้าม · วางข้อมูลจาก Excel ได้ (คอลัมน์: ชื่องาน · หมวด · ผู้รับผิดชอบ · กำหนดเสร็จ · งบประมาณ)</div></div><button type="button" class="x" data-close aria-label="ปิด">×</button></div>
+    <div class="m-head"><div><h2>เพิ่มหลายงานในครั้งเดียว</h2><div class="hint">กรอกเฉพาะแถวที่ต้องการ แถวที่ไม่มีชื่องานจะถูกข้าม · วางข้อมูลจาก Excel ได้ (คอลัมน์: ชื่องาน · หมวด · ผู้รับผิดชอบ · กำหนดเสร็จ · งบประมาณ · รายละเอียด)</div></div><button type="button" class="x" data-close aria-label="ปิด">×</button></div>
     <div class="m-body">
       <div class="bulk-head">
         ${!isOwnUnit() ? `<label class="f req"><span>หน่วยงาน</span><select id="bfUnit" required><option value="">เลือกหน่วยงาน</option>${unitChoices.map(u => `<option value="${u.id}" ${u.id === defUnit ? "selected" : ""}>${esc(u.code)} · ${esc(u.name)}</option>`).join("")}</select></label>` : ""}
@@ -1416,7 +1419,7 @@ function bulkTaskForm(){
       </div>
       <div class="bulk-tools"><span class="hint">ค่าเริ่มต้นของแถวใหม่ · หมวดงาน</span><select id="bfDefCat" style="width:auto">${opts(CATEGORY, "manager")}</select>
         ${canSt ? "" : `<span class="hint">· สถานะเริ่มต้นเป็น “ยังไม่เริ่ม” (ผู้มีสิทธิ์แก้ไขงานจะอัปเดตความคืบหน้าภายหลัง)</span>`}</div>
-      <div class="bulk-wrap"><table class="bulk"><thead><tr><th>#</th><th>ชื่อเรื่อง / งานที่ต้องดำเนินการ *</th><th>หมวดงาน</th><th>ผู้รับผิดชอบ</th><th>กำหนดเสร็จ</th>
+      <div class="bulk-wrap"><table class="bulk"><thead><tr><th>#</th><th>ชื่อเรื่อง / งานที่ต้องดำเนินการ * · รายละเอียด</th><th>หมวดงาน</th><th>ผู้รับผิดชอบ</th><th>กำหนดเสร็จ</th>
         ${canSt ? "<th>สถานะ</th><th>%</th>" : ""}<th>งบประมาณ (บาท)</th>${canSt ? "<th>ใช้จริง (บาท)</th>" : ""}<th></th></tr></thead><tbody id="bfRows"></tbody></table></div>
       <div class="bulk-tools"><button type="button" class="btn sm" id="bfAdd1">+ เพิ่ม 1 แถว</button><button type="button" class="btn sm" id="bfAdd5">+ เพิ่ม 5 แถว</button><span class="hint" id="bfCount"></span></div>
       <div class="err" id="bfErr" role="alert"></div>
@@ -1428,7 +1431,8 @@ function bulkTaskForm(){
   const addRow = (v = {}) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td class="no"></td>
-      <td><input class="ttl-in" data-k="title" type="text" maxlength="300" value="${esc(v.title || "")}" aria-label="ชื่องาน"><span class="rmsg"></span></td>
+      <td><input class="ttl-in" data-k="title" type="text" maxlength="300" value="${esc(v.title || "")}" aria-label="ชื่องาน" placeholder="ชื่องาน">
+        <textarea data-k="detail" maxlength="3000" rows="1" placeholder="รายละเอียดงาน (ถ้ามี)" aria-label="รายละเอียดงาน">${esc(v.detail || "")}</textarea><span class="rmsg"></span></td>
       <td><select data-k="category" aria-label="หมวดงาน">${opts(CATEGORY, v.category || $("#bfDefCat", m.el).value)}</select></td>
       <td><input data-k="owner_name" type="text" maxlength="150" value="${esc(v.owner_name || "")}" aria-label="ผู้รับผิดชอบ"></td>
       <td><input data-k="due_date" type="date" value="${esc(v.due_date || "")}" aria-label="กำหนดเสร็จ"></td>
@@ -1440,6 +1444,8 @@ function bulkTaskForm(){
     tb.appendChild(tr);
     $(".rm", tr).onclick = () => { tr.remove(); if (!$$("tr", tb).length) addRow(); renum(); };
     $(".ttl-in", tr).oninput = renum;
+    const ta = $("textarea", tr), grow = () => { ta.style.height = "34px"; ta.style.height = Math.min(ta.scrollHeight + 2, 160) + "px"; };
+    ta.oninput = grow; if (v.detail) setTimeout(grow, 0);
     $(".ttl-in", tr).addEventListener("paste", e => pasteRows(e, tr));
     if (canSt){
       const st = $('[data-k="status"]', tr), pc = $('[data-k="progress"]', tr);
@@ -1464,6 +1470,7 @@ function bulkTaskForm(){
       const cat = matchCategory(c[1]); if (cat) set("category", cat);
       if (c[2] !== undefined) set("owner_name", c[2].trim());
       if (c[3] !== undefined && c[3].trim()){ const d = parseDateLoose(c[3]); if (d) set("due_date", d); else bad.push(i + 1); }
+      if (c[5] !== undefined && c[5].trim()){ set("detail", c[5].trim()); $("textarea", cur).oninput(); }
       if (c[4] !== undefined && c[4].trim()){ const n = Number(c[4].replace(/[,\s฿บาท]/g, "")); if (!isNaN(n)) set("budget_planned", n); }
       cur = cur.nextElementSibling;
     });
@@ -1486,7 +1493,7 @@ function bulkTaskForm(){
       const g = k => { const el = $(`[data-k="${k}"]`, tr); return el ? el.value : undefined; };
       const title = g("title").trim(); tr.classList.remove("bad"); $(".rmsg", tr).textContent = "";
       if (!title) return;
-      const row = {unit_id, source, meeting_ref, title, category:g("category"), owner_name:g("owner_name").trim() || null,
+      const row = {unit_id, source, meeting_ref, title, detail:g("detail").trim() || null, category:g("category"), owner_name:g("owner_name").trim() || null,
         due_date:g("due_date") || null, budget_planned:numOrNull(g("budget_planned"))};
       if (canSt){ row.status = g("status"); row.progress = Math.max(0, Math.min(100, Math.round(+g("progress") || 0))); row.budget_actual = numOrNull(g("budget_actual"));
         if (row.status === "done") row.progress = 100; }
