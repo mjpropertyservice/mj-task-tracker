@@ -140,6 +140,24 @@ td.n,th.n{text-align:right;white-space:nowrap}
 td.nowrap{white-space:nowrap}
 .code{font-size:.78rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .ttl{font-weight:500}
+table.t tbody tr.grp td{background:var(--surface-2);cursor:pointer;border-top:2px solid var(--line)}
+table.t tbody tr.grp:hover td{background:var(--accent-soft)}
+table.t tbody tr.grp .ttl{font-weight:600}
+.caret{display:inline-block;width:1.1em;color:var(--muted);transition:transform .15s}
+tr.grp.open .caret{transform:rotate(90deg)}
+table.t tbody tr.sub td:nth-child(2){padding-left:28px;border-left:3px solid var(--lime,#8DC63F)}
+table.t tbody tr.sub.hide{display:none}
+.grp-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-4px 0 10px}
+.grp-bar label{display:inline-flex;gap:6px;align-items:center;font-size:.88rem;cursor:pointer}
+.btn.xs{padding:2px 8px;font-size:.78rem;min-height:0}
+.rt tr.rg td{background:#eef3ec;font-weight:600;border-top:1.5px solid #9fb39f}
+.rt tr.rg small{font-weight:400}
+.rt .subno{white-space:nowrap;font-size:8.5pt;letter-spacing:-.02em}
+.caret{margin-right:4px}
+.sib{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:10px}
+.sib li{display:flex;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);cursor:pointer;font-size:.9rem}
+.sib li:first-child{border-top:0}.sib li:hover{background:var(--accent-soft)}.sib li.me{background:var(--surface-2);cursor:default;font-weight:600}
+.sib .code{min-width:72px}.sib .grow{flex:1;min-width:0}
 .ref{display:block;font-size:.78rem;color:var(--muted)}
 .late{color:var(--bad);font-weight:600}
 .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:.77rem;font-weight:600;white-space:nowrap}
@@ -1265,6 +1283,30 @@ function filtered(){
     (!q || [t.title, t.detail, t.owner_name, t.meeting_ref, tcode(t)].some(v => String(v || "").toLowerCase().includes(q)))
   ).sort((a, b) => (unitOf(a.unit_id)?.code || "").localeCompare(unitOf(b.unit_id)?.code || "") || (b.seq - a.seq));
 }
+/* ---------- จัดกลุ่มงานตามการประชุม/มติ (อ้างอิงเดียวกัน + หน่วยงานเดียวกัน ตั้งแต่ 2 งานขึ้นไป) ---------- */
+const refKey = t => t.meeting_ref ? t.unit_id + "|" + String(t.meeting_ref).trim().replace(/\s+/g, " ").toLowerCase() : "";
+function groupTasks(list){
+  const cnt = {}; list.forEach(t => { const k = refKey(t); if (k) cnt[k] = (cnt[k] || 0) + 1; });
+  const out = [], seen = {};
+  list.forEach(t => {
+    const k = refKey(t);
+    if (!k || cnt[k] < 2){ out.push({t}); return; }
+    if (seen[k]){ seen[k].tasks.push(t); return; }
+    seen[k] = {key:k, ref:t.meeting_ref, unit_id:t.unit_id, source:t.source, tasks:[t]}; out.push(seen[k]);
+  });
+  out.forEach(g => { if (g.tasks) g.tasks.sort((a, b) => a.seq - b.seq); });
+  return out;
+}
+const siblingsOf = t => refKey(t) ? S.tasks.filter(x => refKey(x) === refKey(t)).sort((a, b) => a.seq - b.seq) : [];
+function groupStats(ts){
+  const act = ts.filter(t => t.status !== "cancelled");
+  const sum = k => ts.reduce((a, t) => a + (t[k] === null || t[k] === undefined ? 0 : Number(t[k])), 0);
+  const has = k => ts.some(t => t[k] !== null && t[k] !== undefined);
+  return {n:ts.length, done:act.filter(t => t.status === "done").length, act:act.length, late:ts.filter(isLate).length,
+    prog:act.length ? Math.round(act.reduce((a, t) => a + (t.progress || 0), 0) / act.length) : 0,
+    due:act.filter(t => t.status !== "done" && t.due_date).map(t => t.due_date).sort().pop() || null,
+    bp:has("budget_planned") ? sum("budget_planned") : null, ba:has("budget_actual") ? sum("budget_actual") : null};
+}
 function statusPill(t){ return isLate(t) ? `<span class="pill st-late">เกินกำหนด</span>` : `<span class="pill st-${t.status}">${STATUS[t.status].label}</span>`; }
 function renderTasks(){
   const canAdd = S.scope === "all" ? canCreateAny() : canCreate(S.scope);
@@ -1283,18 +1325,46 @@ function renderTasks(){
     </div>
     <div class="tbl-wrap" id="tlist"></div>`;
   $("#fs").value = S.f.status; $("#fc").value = S.f.category; $("#fo").value = S.f.source;
-  const draw = () => {
-    const all = filtered(), showUnit = S.scope === "all", list = all.slice(0, S.listLimit || 300);
-    $("#cnt").textContent = `พบ ${all.length} รายการ`;
-    $("#tlist").innerHTML = list.length ? `<table class="t"><thead><tr><th>เลขที่</th><th>เรื่อง</th>${showUnit ? "<th>หน่วยงาน</th>" : ""}<th>หมวด</th><th>ผู้รับผิดชอบ</th><th>กำหนดเสร็จ</th><th>สถานะ</th><th>ความคืบหน้า</th><th class="n">งบ / ใช้จริง (บาท)</th></tr></thead><tbody>
-      ${list.map(t => `<tr class="click" data-task="${t.id}"><td class="code">${esc(tcode(t))}</td>
-        <td><span class="ttl">${esc(t.title)}</span><span class="ref">${esc(SOURCE[t.source])}${t.meeting_ref ? " · " + esc(t.meeting_ref) : ""}</span></td>
+  if (S.f.group === undefined) S.f.group = true;
+  S.openGroups = S.openGroups || {};
+  $("#tlist").insertAdjacentHTML("beforebegin", `<div class="grp-bar no-print"><label><input type="checkbox" id="fg" ${S.f.group ? "checked" : ""}> รวมงานที่มาจากการประชุม/มติเดียวกันเป็นกลุ่ม</label>
+    <span id="grpTools"></span></div>`);
+  const taskRow = (t, showUnit, sub, open) => `<tr class="click${sub ? " sub" + (open ? "" : " hide") : ""}" data-task="${t.id}"${sub ? ` data-of="${esc(sub)}"` : ""}><td class="code">${esc(tcode(t))}</td>
+        <td><span class="ttl">${esc(t.title)}</span><span class="ref">${sub ? (t.detail ? esc(String(t.detail).split("\n")[0].slice(0, 90)) : "") : esc(SOURCE[t.source]) + (t.meeting_ref ? " · " + esc(t.meeting_ref) : "")}</span></td>
         ${showUnit ? `<td class="nowrap">${esc(unitOf(t.unit_id)?.code)}</td>` : ""}
         <td class="nowrap">${esc(CATEGORY[t.category])}</td><td>${esc(t.owner_name || "–")}</td>
         <td class="nowrap ${isLate(t) ? "late" : ""}">${dTH(t.due_date)}</td><td>${statusPill(t)}</td>
         <td><div class="prog"><div class="meter"><i style="width:${t.progress}%"></i></div><span>${t.progress}%</span></div></td>
-        <td class="n">${money(t.budget_planned)}<span class="ref">${money(t.budget_actual)}</span></td></tr>`).join("")}
+        <td class="n">${money(t.budget_planned)}<span class="ref">${money(t.budget_actual)}</span></td></tr>`;
+  const draw = () => {
+    const all = filtered(), showUnit = S.scope === "all", searching = !!S.f.q.trim();
+    const items = S.f.group ? groupTasks(all) : all.map(t => ({t}));
+    const lim = S.listLimit || 300; let used = 0; const list = [];
+    for (const it of items){ if (used >= lim) break; list.push(it); used += it.tasks ? it.tasks.length : 1; }
+    const nGroups = items.filter(i => i.tasks).length;
+    $("#cnt").textContent = `พบ ${all.length} รายการ` + (nGroups ? ` · ${nGroups} กลุ่มการประชุม/มติ` : "");
+    $("#grpTools").innerHTML = S.f.group && nGroups ? `<button type="button" class="btn xs" id="gOpen">ขยายทุกกลุ่ม</button> <button type="button" class="btn xs" id="gClose">ย่อทุกกลุ่ม</button>` : "";
+    const cols = showUnit ? 9 : 8;
+    $("#tlist").innerHTML = list.length ? `<table class="t"><thead><tr><th>เลขที่</th><th>เรื่อง</th>${showUnit ? "<th>หน่วยงาน</th>" : ""}<th>หมวด</th><th>ผู้รับผิดชอบ</th><th>กำหนดเสร็จ</th><th>สถานะ</th><th>ความคืบหน้า</th><th class="n">งบ / ใช้จริง (บาท)</th></tr></thead><tbody>
+      ${list.map(it => { if (!it.tasks) return taskRow(it.t, showUnit);
+        const g = groupStats(it.tasks), open = searching || !!S.openGroups[it.key];
+        const owners = [...new Set(it.tasks.map(t => t.owner_name).filter(Boolean))];
+        return `<tr class="grp${open ? " open" : ""}" data-grp="${esc(it.key)}"><td class="code nowrap"><span class="caret">▶</span>${it.tasks.length} งาน</td>
+          <td><span class="ttl">${esc(it.ref)}</span><span class="ref">${esc(SOURCE[it.source])} · ${it.tasks.map(t => esc(tcode(t))).join(", ")}${canCreate(it.unit_id) ? ` · <button type="button" class="btn xs" data-gadd="${esc(it.key)}">+ เพิ่มงานในเรื่องนี้</button>` : ""}</span></td>
+          ${showUnit ? `<td class="nowrap">${esc(unitOf(it.unit_id)?.code)}</td>` : ""}
+          <td></td><td>${owners.length ? esc(owners.slice(0, 3).join(", ")) + (owners.length > 3 ? ` +${owners.length - 3}` : "") : "–"}</td>
+          <td class="nowrap">${g.due ? "ถึง " + dTH(g.due) : "–"}</td>
+          <td class="nowrap">${g.late ? `<span class="pill st-late">เกินกำหนด ${g.late}</span>` : `<span class="pill st-${g.done === g.act && g.act ? "done" : "in_progress"}">เสร็จ ${g.done}/${g.act}</span>`}</td>
+          <td><div class="prog"><div class="meter"><i style="width:${g.prog}%"></i></div><span>${g.prog}%</span></div></td>
+          <td class="n">${money(g.bp)}<span class="ref">${money(g.ba)}</span></td></tr>` + it.tasks.map(t => taskRow(t, showUnit, it.key, open)).join(""); }).join("")}
       </tbody></table>` : `<div class="empty">ไม่พบงานตามเงื่อนไข${canAdd ? " · กด “+ เพิ่มงาน” เพื่อบันทึกงานแรก" : ""}</div>`;
+    const byKey = {}; items.forEach(i => { if (i.tasks) byKey[i.key] = i; });
+    $$("[data-grp]").forEach(r => r.onclick = e => { if (e.target.closest("[data-gadd]")) return;
+      const k = r.dataset.grp, open = !r.classList.contains("open"); S.openGroups[k] = open; r.classList.toggle("open", open);
+      $$("tr.sub").filter(x => x.dataset.of === k).forEach(x => x.classList.toggle("hide", !open)); });
+    $$("[data-gadd]").forEach(b => b.onclick = e => { e.stopPropagation(); const g = byKey[b.dataset.gadd]; if (g) bulkTaskForm({unit_id:g.unit_id, source:g.source, meeting_ref:g.ref}); });
+    if ($("#gOpen")) $("#gOpen").onclick = () => { Object.keys(byKey).forEach(k => S.openGroups[k] = true); draw(); };
+    if ($("#gClose")) $("#gClose").onclick = () => { S.openGroups = {}; draw(); };
     if (all.length > list.length) $("#tlist").insertAdjacentHTML("beforeend", `<div class="more-row no-print"><span class="hint">แสดง ${list.length} จาก ${all.length} รายการ (ค้นหาหรือกรองเพื่อหาเร็วขึ้น)</span>
       <button class="btn sm" id="moreBtn">แสดงเพิ่มอีก 300</button><button class="btn sm" id="allBtn">แสดงทั้งหมด</button></div>`);
     if ($("#moreBtn")) $("#moreBtn").onclick = () => { S.listLimit = list.length + 300; draw(); };
@@ -1305,6 +1375,7 @@ function renderTasks(){
   draw();
   $("#fq").oninput = e => { S.f.q = e.target.value; S.listLimit = 300; draw(); };
   [["fs","status"],["fc","category"],["fo","source"]].forEach(([id, k]) => $("#" + id).onchange = e => { S.f[k] = e.target.value; S.listLimit = 300; draw(); });
+  $("#fg").onchange = e => { S.f.group = e.target.checked; draw(); };
   bindScope(renderTasks);
   if ($("#addBtn")) $("#addBtn").onclick = () => taskForm();
   if ($("#bulkBtn")) $("#bulkBtn").onclick = () => bulkTaskForm();
@@ -1404,18 +1475,19 @@ function matchCategory(v){
   const e = Object.entries(CATEGORY).find(([, l]) => l === v) || Object.entries(CATEGORY).find(([, l]) => v.includes(l) || l.includes(v));
   return e ? e[0] : "";
 }
-function bulkTaskForm(){
+function bulkTaskForm(preset){
+  preset = preset || {};
   const canSt = !!perm().can_edit;                    // สถานะ/ความคืบหน้า/ใช้จริง เฉพาะผู้มีสิทธิ์แก้ไขงาน
   const unitChoices = S.units.filter(u => canCreate(u.id));
-  const defUnit = S.scope !== "all" && canCreate(S.scope) ? S.scope : "";
+  const defUnit = preset.unit_id || (S.scope !== "all" && canCreate(S.scope) ? S.scope : "");
   const cols = 7 + (canSt ? 3 : 0);
   const m = modal(`<form id="bf" novalidate>
-    <div class="m-head"><div><h2>เพิ่มหลายงานในครั้งเดียว</h2><div class="hint">กรอกเฉพาะแถวที่ต้องการ แถวที่ไม่มีชื่องานจะถูกข้าม · วางข้อมูลจาก Excel ได้ (คอลัมน์: ชื่องาน · หมวด · ผู้รับผิดชอบ · กำหนดเสร็จ · งบประมาณ · รายละเอียด)</div></div><button type="button" class="x" data-close aria-label="ปิด">×</button></div>
+    <div class="m-head"><div><h2>${preset.meeting_ref ? "เพิ่มงานในเรื่อง: " + esc(preset.meeting_ref) : "เพิ่มหลายงานในครั้งเดียว"}</h2><div class="hint">กรอกเฉพาะแถวที่ต้องการ แถวที่ไม่มีชื่องานจะถูกข้าม · วางข้อมูลจาก Excel ได้ (คอลัมน์: ชื่องาน · หมวด · ผู้รับผิดชอบ · กำหนดเสร็จ · งบประมาณ · รายละเอียด)</div></div><button type="button" class="x" data-close aria-label="ปิด">×</button></div>
     <div class="m-body">
       <div class="bulk-head">
         ${!isOwnUnit() ? `<label class="f req"><span>หน่วยงาน</span><select id="bfUnit" required><option value="">เลือกหน่วยงาน</option>${unitChoices.map(u => `<option value="${u.id}" ${u.id === defUnit ? "selected" : ""}>${esc(u.code)} · ${esc(u.name)}</option>`).join("")}</select></label>` : ""}
-        <label class="f req"><span>ที่มาของงาน (ใช้กับทุกแถว)</span><select id="bfSource">${opts(SOURCE, "board_meeting")}</select></label>
-        <label class="f"><span>อ้างอิงการประชุม / มติ (ใช้กับทุกแถว)</span><input id="bfRef" type="text" maxlength="300" placeholder="เช่น ประชุมคณะกรรมการ ครั้งที่ 7/2569"></label>
+        <label class="f req"><span>ที่มาของงาน (ใช้กับทุกแถว)</span><select id="bfSource">${opts(SOURCE, preset.source || "board_meeting")}</select></label>
+        <label class="f"><span>อ้างอิงการประชุม / มติ (ใช้กับทุกแถว · งานที่อ้างอิงเดียวกันจะรวมเป็นกลุ่ม)</span><input id="bfRef" type="text" maxlength="300" placeholder="เช่น ประชุมคณะกรรมการ ครั้งที่ 7/2569" value="${esc(preset.meeting_ref || "")}" list="bfRefList"><datalist id="bfRefList"></datalist></label>
       </div>
       <div class="bulk-tools"><span class="hint">ค่าเริ่มต้นของแถวใหม่ · หมวดงาน</span><select id="bfDefCat" style="width:auto">${opts(CATEGORY, "manager")}</select>
         ${canSt ? "" : `<span class="hint">· สถานะเริ่มต้นเป็น “ยังไม่เริ่ม” (ผู้มีสิทธิ์แก้ไขงานจะอัปเดตความคืบหน้าภายหลัง)</span>`}</div>
@@ -1426,6 +1498,10 @@ function bulkTaskForm(){
     </div>
     <div class="m-foot"><button type="button" class="btn" data-close>ยกเลิก</button><button class="btn primary" id="bfSave">บันทึกทุกงาน</button></div></form>`, "wide");
   const tb = $("#bfRows", m.el);
+  // แนะนำอ้างอิงที่เคยใช้ในหน่วยงานนี้ เพื่อพิมพ์ให้ตรงกันและรวมกลุ่มได้
+  const fillRefs = () => { const uid = isOwnUnit() ? S.me.unit_id : ($("#bfUnit", m.el) || {}).value;
+    $("#bfRefList", m.el).innerHTML = [...new Set(S.tasks.filter(t => t.unit_id === uid && t.meeting_ref).map(t => t.meeting_ref.trim()))].slice(0, 50).map(r => `<option value="${esc(r)}">`).join(""); };
+  fillRefs(); if ($("#bfUnit", m.el)) $("#bfUnit", m.el).addEventListener("change", fillRefs);
   const renum = () => { $$("tr", tb).forEach((tr, i) => $(".no", tr).textContent = i + 1);
     const n = $$("tr", tb).filter(tr => $(".ttl-in", tr).value.trim()).length; $("#bfCount", m.el).textContent = n ? `กรอกแล้ว ${n} งาน` : ""; };
   const addRow = (v = {}) => {
@@ -1532,7 +1608,7 @@ async function openTask(id){
         <div><span>เสร็จจริง</span><b>${dTH(t.finished_date)}</b></div><div><span>งบประมาณ (บาท)</span><b>${money(t.budget_planned)}</b></div>
         <div><span>ใช้จริง (บาท)</span><b>${money(t.budget_actual)}</b></div><div><span>ความคืบหน้า</span><b>${t.progress}%</b></div>
       </div>
-      ${t.meeting_ref ? `<div><span class="hint">อ้างอิง</span><div>${esc(t.meeting_ref)}</div></div>` : ""}
+      ${t.meeting_ref ? `<div><span class="hint">อ้างอิง</span><div>${esc(t.meeting_ref)}</div>${(sibs => sibs.length > 1 ? `<div class="hint" style="margin-top:8px">งานทั้งหมดในเรื่องนี้ (${sibs.length} งาน)</div><ul class="sib">${sibs.map(x => `<li class="${x.id === t.id ? "me" : ""}" data-sib="${x.id}"><span class="code">${esc(tcode(x))}</span><span class="grow">${esc(x.title)}<span class="ref">${esc(x.owner_name || "–")} · กำหนด ${dTH(x.due_date)}</span></span>${statusPill(x)}<span class="num">${x.progress}%</span></li>`).join("")}</ul>` : "")(siblingsOf(t))}</div>` : ""}
       ${t.detail ? `<div><span class="hint">รายละเอียด</span><div style="white-space:pre-wrap">${esc(t.detail)}</div></div>` : ""}
       ${w ? `<form class="boxed" id="uf" novalidate><h3 style="margin-bottom:10px">บันทึกความคืบหน้า</h3>
         <div class="grid3">
@@ -1547,6 +1623,7 @@ async function openTask(id){
     <div class="m-foot">${canDelete(t.unit_id) ? `<button class="btn danger" id="delTask" style="margin-right:auto">ลบงาน</button>` : ""}
       ${w ? `<button class="btn" id="editTask">แก้ไขข้อมูลงาน</button>` : ""}<button class="btn" data-close>ปิด</button></div>`);
   if ($("#editTask", m.el)) $("#editTask", m.el).onclick = () => { m.close(); taskForm(t); };
+  $$("[data-sib]", m.el).forEach(li => { if (li.dataset.sib !== t.id) li.onclick = () => { m.close(); openTask(li.dataset.sib); }; });
   if ($("#delTask", m.el)) $("#delTask", m.el).onclick = async () => {
     const ok = await confirmBox({title:"ลบงานนี้ถาวร?", body:`<p>งาน <b>${esc(tcode(t))} ${esc(t.title)}</b> และประวัติทั้งหมดจะถูกลบ และกู้คืนได้จากไฟล์สำรองเท่านั้น</p>`, ok:"ลบงาน", danger:true});
     if (!ok) return;
@@ -1761,6 +1838,19 @@ async function paginateReport(model){
   host.dataset.pages = pages.length;
   const info = $("#rPages"); if (info) info.textContent = `รายงานนี้มี ${pages.length} หน้า (A4 แนวนอน)`;
 }
+// แถวรายงาน: งานที่อ้างอิงการประชุม/มติเดียวกันอยู่ใต้หัวข้อเดียวกัน (ลำดับ 1.1, 1.2 …)
+function reportRows(list, rowFn, cols){
+  const out = []; let n = 0;
+  groupTasks(list).forEach(it => {
+    if (!it.tasks){ out.push(rowFn(it.t, ++n, false)); return; }
+    const g = ++n, st = groupStats(it.tasks);
+    out.push(`<tr class="rg"><td class="c">${g}</td><td colspan="${cols - 1}">${esc(it.ref)} <small>· ${esc(SOURCE[it.source])} · ${it.tasks.length} งาน · แล้วเสร็จ ${st.done}/${st.act}${st.late ? " · เกินกำหนด " + st.late : ""}</small></td></tr>`);
+    it.tasks.forEach((t, j) => out.push(rowFn(t, `<span class="subno">${g}.${j + 1}</span>`, true)));
+  });
+  return out;
+}
+// ลำดับงานตามกลุ่ม (ใช้กับ Excel)
+const groupedOrder = list => groupTasks(list).flatMap(it => it.tasks || [it.t]);
 function unitReportModel(updates){
   const u = unitOf(S.scope), list = reportTasks(), inR = rangeTasksOf(scopedTasks()), s = stats(inR), notes = latestNotes(updates);
   const lateN = inR.filter(lateAt).length;
@@ -1773,13 +1863,13 @@ function unitReportModel(updates){
       <div>งบประมาณ <b>${money(s.bp)}</b> บาท<br>ใช้จริง <b>${money(s.ba)}</b> บาท</div></div>`,
     cols: [9, 75, 17, 22, 29, 25, 28, 68],
     thead: `<tr><th>ลำดับ</th><th>เรื่อง / อ้างอิงที่มา</th><th>หมวด</th><th>ผู้รับผิดชอบ</th><th>กำหนดการ<br><small>(วว/ดด/ปป)</small></th><th>งบประมาณ<br>/ ใช้จริง (บาท)</th><th>สถานะ</th><th>ความคืบหน้าล่าสุด</th></tr>`,
-    rows: list.length ? list.map((t, i) => `<tr><td class="c">${i + 1}</td>
-      <td>${esc(t.title)}<small class="s">${esc(SOURCE[t.source])}${t.meeting_ref ? " · " + esc(t.meeting_ref) : ""} · ${esc(tcode(t))}</small></td>
+    rows: list.length ? reportRows(list, (t, i, inG) => `<tr><td class="c">${i}</td>
+      <td>${esc(t.title)}<small class="s">${inG ? "" : esc(SOURCE[t.source]) + (t.meeting_ref ? " · " + esc(t.meeting_ref) : "") + " · "}${esc(tcode(t))}</small></td>
       <td>${esc(CATEGORY[t.category])}</td><td>${esc(t.owner_name || "–")}</td>
       <td class="d"><div class="dl"><span>เริ่ม</span>${dNum(t.start_date)}</div><div class="dl"><span>กำหนด</span>${dNum(t.due_date)}</div><div class="dl"><span>เสร็จ</span>${dNum(t.finished_date)}</div></td>
       <td class="n">${money(t.budget_planned)}<div class="dl sub"><span>ใช้</span>${money(t.budget_actual)}</div></td>
       <td class="c">${STATUS[t.status].label}${t.status !== "done" && t.status !== "cancelled" ? "<br>" + t.progress + "%" : ""}${t._late ? "<br><b>(เกินกำหนด)</b>" : ""}</td>
-      <td>${notes[t.id] ? esc(notes[t.id].note) + `<small class="s">${dNum(notes[t.id].created_at)}</small>` : "–"}</td></tr>`)
+      <td>${notes[t.id] ? esc(notes[t.id].note) + `<small class="s">${dNum(notes[t.id].created_at)}</small>` : "–"}</td></tr>`, 8)
       : [`<tr><td colspan="8" class="c">ไม่มีรายการ</td></tr>`],
     sign: signHTML(true, (S.repReviews || []).find(r => r.period === S.rep.to.slice(0, 8) + "01"))
   };
@@ -1805,7 +1895,7 @@ function sheetFromRows(X, rows, widths, merges=[]){
 const fileStamp = () => (S.rep.from ? S.rep.from + "_ถึง_" : "ถึง_") + S.rep.to;
 async function exportUnitReportXlsx(updates){
   try {
-    const X = await xlsx(), u = unitOf(S.scope), list = reportTasks(), s = stats(rangeTasksOf(scopedTasks())), notes = latestNotes(updates);
+    const X = await xlsx(), u = unitOf(S.scope), list = groupedOrder(reportTasks()), s = stats(rangeTasksOf(scopedTasks())), notes = latestNotes(updates);
     const head = ["ลำดับ","เลขที่งาน","เรื่อง","ที่มาของงาน","อ้างอิงมติ/การประชุม","หมวดงาน","ผู้รับผิดชอบ","วันที่เริ่ม","กำหนดแล้วเสร็จ","วันที่เสร็จจริง","งบประมาณ (บาท)","ใช้จริง (บาท)","สถานะ","ความคืบหน้า (%)","เกินกำหนด","ความคืบหน้าล่าสุด","วันที่บันทึกล่าสุด"];
     const rows = [[CONFIG.COMPANY_NAME],["รายงานติดตามผลการดำเนินงาน"],[`${u.name} (${u.code})`],[rangeLabel() + " · " + filterLabel()],[],
       ["งานทั้งหมด (ไม่รวมยกเลิก)", s.active, "แล้วเสร็จ", s.done, "กำลังดำเนินการ", s.in_progress, "ชะลอ/ติดปัญหา", s.on_hold, "ยังไม่เริ่ม", s.not_started],
